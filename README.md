@@ -1,35 +1,147 @@
-```hcl
-locals {
-  hello = var.name
+# mde-linux-rhel-ansible-role
+
+## 🧰 Development Environment Setup
+
+This repository uses Python virtual environments for isolation. You can use either **uv (recommended)** or standard **Python venv + pip**.
+
+---
+
+# 🚀 Option 1 — Using uv (Recommended)
+
+[`uv`](https://github.com/astral-sh/uv) is a fast Python package manager and virtual environment tool.
+
+## 1. Install uv
+
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+Restart your shell or run:
+
+```bash
+source ~/.bashrc
+```
+
+---
+
+## 2. Create virtual environment
+
+```bash
+uv venv .venv
+```
+
+---
+
+## 3. Activate environment
+
+```bash
+source .venv/bin/activate
+```
+
+You should now see:
+
+```text
+(.venv)
+```
+
+---
+
+## 4. Install dependencies
+
+```bash
+uv pip install ansible
+```
+
+---
+
+## 5. Verify installation
+
+```bash
+ansible --version
+```
+
+---
+
+## 6. (Optional) Lock dependencies
+
+```bash
+uv lock
+```
+
+---
+
+# 🐍 Option 2 — Standard Python (venv + pip)
+
+## 1. Ensure Python is installed
+
+```bash
+python3 --version
+```
+
+---
+
+## 2. Create virtual environment
+
+```bash
+python3 -m venv .venv
+```
+
+---
+
+## 3. Activate environment
+
+```bash
+source .venv/bin/activate
+```
+
+---
+
+## 4. Install dependencies
+
+```bash
+pip install --upgrade pip
+pip install ansible
+```
+
+---
+
+## 5. Verify installation
+
+```bash
+ansible --version
+```
+
+---
+
+# 🧪 Test Ansible
+
+Run a quick test to confirm everything is working:
+
+```bash
+ansible localhost -m ping
+```
+
+Expected output:
+
+```text
+localhost | SUCCESS => {
+    "changed": false,
+    "ping": "pong"
 }
 ```
-## Requirements
 
-No requirements.
+---
 
-## Providers
+# ⚠️ Notes
 
-No providers.
+* Always activate the virtual environment before running Ansible.
+* Do **not** install dependencies globally.
+* `.venv/` should be added to `.gitignore`.
 
-## Modules
+---
 
-No modules.
+# 🧹 Deactivate environment
 
-## Resources
-
-No resources.
-
-## Inputs
-
-| Name | Description | Type | Default | Required |
-|------|-------------|------|---------|:--------:|
-| <a name="input_location"></a> [location](#input\_location) | The location for this resource to be put in | `string` | `"uksouth"` | no |
-| <a name="input_name"></a> [name](#input\_name) | The name of the resource | `string` | `"hello"` | no |
-| <a name="input_rg_name"></a> [rg\_name](#input\_rg\_name) | The name of the resource group, this module does not create a resource group, it is expecting the value of a resource group already exists | `string` | `null` | no |
-| <a name="input_tags"></a> [tags](#input\_tags) | A map of the tags to use on the resources that are deployed with this module. | `map(string)` | `null` | no |
-
-## Outputs
-
-| Name | Description |
-|------|-------------|
-| <a name="output_hello"></a> [hello](#output\_hello) | Hello |
+```bash
+deactivate
+```
