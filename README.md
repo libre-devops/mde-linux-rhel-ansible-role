@@ -145,3 +145,11 @@ localhost | SUCCESS => {
 ```bash
 deactivate
 ```
+
+## Onboarding File
+
+Place your onboarding file in:
+
+files/onboarding/
+
+This file is generated from the Microsoft Defender portal and must not be modified.

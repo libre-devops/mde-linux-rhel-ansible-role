@@ -1,0 +1,12 @@
+- name: Ensure managed config directory exists
+  file:
+    path: /etc/opt/microsoft/mdatp/managed
+    state: directory
+    mode: '0755'
+
+- name: Deploy managed configuration
+  template:
+    src: mdatp_managed.json.j2
+    dest: /etc/opt/microsoft/mdatp/managed/mdatp_managed.json
+    mode: '0644'
+  notify: restart mdatp

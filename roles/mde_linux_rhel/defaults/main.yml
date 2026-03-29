@@ -1,0 +1,26 @@
+---
+configure_ssh: true
+ssh_keys:
+  - user: root
+    key_files:
+      - "{{ lookup('env', 'HOME') }}/.ssh/id_ed25519.pub"
+      - "{{ lookup('env', 'HOME') }}/.ssh/id_rsa.pub"
+
+
+run_yum_update: true
+
+edr_enabled: true
+edr_supported_rhel_versions:
+  - 8
+  - 9
+
+mde_onboarding_file: "mdatp_onboard.json"
+mde_onboarding_local_path: "files/onboarding/{{ mde_onboarding_file }}"
+mde_onboarding_remote_path: "/etc/opt/microsoft/mdatp/{{ mde_onboarding_file }}"
+
+mde_force_onboarding: false
+mde_passive_mode: false
+
+mde_tags:
+  - key: "GROUP"
+    value: "RHEL-EDR"

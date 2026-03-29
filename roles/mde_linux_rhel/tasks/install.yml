@@ -1,0 +1,16 @@
+- name: Ensure Microsoft repo is present
+  get_url:
+    url: "https://packages.microsoft.com/config/rhel/{{ ansible_facts['distribution_major_version'] }}/prod.repo"
+    dest: /etc/yum.repos.d/microsoft-prod.repo
+    mode: '0644'
+
+- name: Install Defender for Endpoint
+  yum:
+    name: mdatp
+    state: present
+
+- name: Ensure mdatp service is running
+  service:
+    name: mdatp
+    state: started
+    enabled: true

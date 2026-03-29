@@ -1,0 +1,22 @@
+- name: Run bootstrap tasks
+  include_tasks: bootstrap.yml
+
+- name: Debug EDR support
+  debug:
+    msg: "EDR supported on this host: {{ is_edr_support }}"
+
+- name: Install MDE
+  include_tasks: install.yml
+  when: is_edr_support
+
+- name: Configure MDE
+  include_tasks: config.yml
+  when: is_edr_support
+
+- name: Onboard MDE
+  include_tasks: onboard.yml
+  when: is_edr_support
+
+- name: Verify MDE
+  include_tasks: verify.yml
+  when: is_edr_support

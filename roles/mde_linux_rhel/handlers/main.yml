@@ -3,3 +3,8 @@
   service:
     name: sshd
     state: restarted
+
+- name: restart mdatp
+  service:
+    name: mdatp
+    state: restarted

@@ -1,0 +1,128 @@
+---
+
+# 🔍 Resolve user account details from system
+- name: Get user account details
+  command: getent passwd {{ item.user }}
+  register: passwd_entries
+  changed_when: false
+  loop: "{{ ssh_keys }}"
+  when: configure_ssh | default(true)
+
+# 🚫 Fail early if user does not exist
+- name: Ensure users exist
+  fail:
+    msg: "User {{ item.item.user }} does not exist on the system"
+  when: item.stdout == "" and configure_ssh | default(true)
+  loop: "{{ passwd_entries.results }}"
+
+# 🧠 Build user → home directory map
+- name: Build user home directory map
+  set_fact:
+    ssh_user_homes: "{{ ssh_user_homes | default({}) | combine({ item.item.user: (item.stdout.split(':')[5]) }) }}"
+  loop: "{{ passwd_entries.results }}"
+  when: configure_ssh | default(true)
+
+
+# 📁 Ensure .ssh directories exist
+- name: Ensure .ssh directory exists
+  file:
+    path: "{{ ssh_user_homes[item.user] }}/.ssh"
+    state: directory
+    mode: '0700'
+    owner: "{{ item.user }}"
+    group: "{{ item.user }}"
+  loop: "{{ ssh_keys }}"
+  when: configure_ssh | default(true)
+
+
+# 🔍 Check which SSH key files exist
+- name: Check which SSH key files exist
+  stat:
+    path: "{{ item }}"
+  register: ssh_key_stats
+  loop: "{{ ssh_keys | map(attribute='key_files') | flatten }}"
+  when: configure_ssh | default(true)
+
+
+# 🧠 Build list of valid SSH key files
+- name: Build list of valid SSH key files
+  set_fact:
+    valid_ssh_key_files: >-
+      {{
+        ssh_key_stats.results
+        | selectattr('stat.exists')
+        | map(attribute='stat.path')
+        | list
+      }}
+  when: configure_ssh | default(true)
+
+
+# 🔑 Add SSH keys
+- name: Add SSH keys to authorized_keys
+  authorized_key:
+    user: "{{ item.0.user }}"
+    state: present
+    key: "{{ lookup('file', item.1) }}"
+    comment: "{{ item.0.user }}"
+  loop: >-
+    {{
+      ssh_keys
+      | subelements('key_files')
+      | selectattr('1', 'in', valid_ssh_key_files)
+    }}
+  loop_control:
+    label: "{{ item.0.user }} -> {{ item.1 }}"
+  when: configure_ssh | default(true)
+
+
+# 🔐 Harden SSH config
+- name: Ensure SSH is configured to disallow empty passwords
+  lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: '^#?PermitEmptyPasswords'
+    line: 'PermitEmptyPasswords no'
+    state: present
+  notify: restart sshd
+  when: configure_ssh | default(true)
+
+
+# 📦 Update packages
+- name: Update all packages
+  package:
+    name: "*"
+    state: latest
+    update_cache: yes
+  async: 3600
+  poll: 30
+  register: yum_update_result
+  when: run_yum_update | default(true)
+
+# 🧾 Show update result
+- name: Display yum update results
+  debug:
+    msg: "{{ yum_update_result }}"
+  when: yum_update_result is defined and yum_update_result.changed
+
+# 🔍 Debug authorized_keys content
+- name: Read authorized_keys
+  command: cat {{ ssh_user_homes[item.user] }}/.ssh/authorized_keys
+  register: authorized_keys_content
+  changed_when: false
+  loop: "{{ ssh_keys }}"
+  when: configure_ssh | default(true)
+
+- name: Show authorized keys
+  debug:
+    msg: "{{ item.stdout_lines }}"
+  loop: "{{ authorized_keys_content.results }}"
+  when: configure_ssh | default(true)
+
+# 🛡️ Determine if EDR should run
+- name: Check if running supported RHEL version for EDR
+  set_fact:
+    is_edr_support: >-
+      {{
+        (edr_enabled | default(false))
+        and ansible_facts['distribution'] == 'RedHat'
+        and (ansible_facts['distribution_major_version'] | int) in edr_supported_rhel_versions
+      }}

@@ -1,0 +1,13 @@
+- name: Check MDE health
+  command: mdatp health
+  register: mde_health
+  changed_when: false
+
+- name: Show MDE health
+  debug:
+    var: mde_health.stdout_lines
+
+- name: Ensure MDE is onboarded
+  fail:
+    msg: "MDE onboarding failed"
+  when: "'org_id' not in mde_health.stdout"

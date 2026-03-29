@@ -1,0 +1,35 @@
+- name: Ensure MDE config directory exists
+  file:
+    path: /etc/opt/microsoft/mdatp
+    state: directory
+    mode: '0755'
+
+- name: Copy onboarding file
+  copy:
+    src: "onboarding/{{ mde_onboarding_file }}"
+    dest: "{{ mde_onboarding_remote_path }}"
+    mode: '0600'
+
+- name: Check onboarding state
+  command: mdatp health --field org_id
+  register: mde_org
+  changed_when: false
+  failed_when: false
+
+- name: Run MDE onboarding if not onboarded
+  command: >
+    mdatp onboarding --input {{ mde_onboarding_remote_path }}
+  when: mde_org.stdout | length == 0
+
+- name: Debug onboarding org_id
+  debug:
+    var: mde_org.stdout
+
+- name: Wait for all MDE tags to appear
+  command: mdatp health --field edr_device_tags
+  register: mde_tags_output
+  changed_when: false
+  retries: 5
+  delay: 30
+  until: >
+    mde_tags | map(attribute='value') | select('in', mde_tags_output.stdout) | list | length == mde_tags | length

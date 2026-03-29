@@ -167,3 +167,4 @@ override.tf.json
 terraform.rc
 
 inventory.ini
+/roles/mde_linux_rhel/files/onboarding/mdatp_onboard.json

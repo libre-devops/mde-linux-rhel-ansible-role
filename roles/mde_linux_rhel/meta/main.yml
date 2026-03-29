@@ -1,0 +1,9 @@
+# roles/mde_linux_rhel/meta/main.yml
+---
+galaxy_info:
+  author: Craig Thacker (craig@craigthacker.dev)
+  description: Install and onboard Microsoft Defender for Endpoint on RHEL
+  license: MIT
+  min_ansible_version: "2.14"
+
+dependencies: []

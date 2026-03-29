@@ -1,0 +1,18 @@
+{
+  "antivirusEngine": {
+    "enforcementLevel": "{{ 'passive' if mde_passive_mode else 'real_time' }}"
+  },
+  "cloudService": {
+    "enabled": true
+  },
+  "edr": {
+    "tags": [
+{% for tag in mde_tags %}
+      {
+        "key": "{{ tag.key }}",
+        "value": "{{ tag.value }}"
+      }{% if not loop.last %},{% endif %}
+{% endfor %}
+    ]
+  }
+}
