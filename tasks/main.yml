@@ -1,0 +1,65 @@
+---
+- name: Ensure .ssh directory exists
+  file:
+    path: "{{ ansible_env.HOME }}/.ssh"
+    state: directory
+    mode: 0700
+    owner: "{{ ansible_env.USER }}"
+    group: "{{ ansible_env.USER }}"
+
+
+- name: Add SSH key to authorized_keys
+  authorized_key:
+    user: "{{ ansible_env.USER }}"
+    state: present
+    key: "{{ item.key }}"
+    comment: "{{ item.user }}"
+  loop: "{{ ssh_keys }}"
+  loop_control:
+    label: "{{ item.user }}"
+
+
+- name: Ensure SSH is configured to allow key-based authentication
+  lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: '^#?PermitEmptyPasswords'
+    line: 'PermitEmptyPasswords no'
+    state: present
+  notify: restart sshd
+
+- name: Update all packages with yum
+  yum:
+    name: "*"
+    update_cache: yes
+    state: latest
+  async: 3600
+  poll: 30
+  register: yum_update_result
+  when: run_yum_update | default(true)
+
+
+- name: Display yum update results
+  debug:
+    msg: "{{ yum_update_result }} | default('No yum update performed')"
+  when: yum_update_result.changed
+
+- name: Display authorised keys
+  command: cat ~/.ssh/authorized_keys
+  register: authorized_keys_content
+  changed_when: false
+
+
+- name: Show authorized keys
+  debug:
+    msg: "{{ authorized_keys_content.stdout_lines }}"
+
+
+# EDR Config
+- name: Check if running RHEL version for EDR
+  set_fact:
+    is_edr_support: >-
+      {{ edr_enabled | default(false)
+      and ansible_distribution == 'RedHat'
+      ansible_distribution_major_version in edr_supported_rhel_versions  }}
+      
+  

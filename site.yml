@@ -1,0 +1,98 @@
+---
+- name: Configure SSH keys on RHEL servers
+  hosts: rhel_mde_servers
+  gather_facts: true
+  become: true
+
+  vars_files:
+    - vars/main.yml
+
+  tasks:
+    - name: Include SSH key configuration tasks
+      include_tasks: tasks/main.yml
+      tags:
+        - ssh-keys
+        - ssh-key-config
+        - ssh-key-config-rhel
+
+
+    - name: Test SSH Key authentication (before disabling password auth)
+      block:
+        - name: Test connection with SSH keys
+          ping:
+          tags:
+            - test-ssh-keys
+
+        - name: Verify we can run commands with SSH keys
+          command: whoami
+          register: whoami_result
+          changed_when: false
+          tags:
+            - test-ssh-keys
+
+        - name: Display SSH key auth test result
+          debug:
+            msg: "SSH key authentication test passed: {{ whoami_result.stdout }}"
+          tags:
+            - test-ssh-keys
+
+
+    - name: Disable password authentication
+      block:
+        - name: Disable password authentication
+          lineinfile:
+            path: /etc/ssh/sshd_config
+            regexp: '^#?PasswordAuthentication'
+            line: 'PasswordAuthentication no'
+            state: present
+          notify: restart sshd
+          tags:
+            - ssh-keys
+            - ssh-key-config
+            - ssh-key-config-rhel
+
+        - name: Flush handlers to restart sshd
+          meta: flush_handlers
+          tags:
+            - ssh-keys
+            - ssh-key-config
+            - ssh-key-config-rhel
+
+
+        - name: Wait for sshd to restart
+          wait_for:
+            port: 22
+            delay: 2
+            timeout: 30
+            tags:
+              - ssh-keys
+              - ssh-key-config
+              - ssh-key-config-rhel
+
+    - name: Test SSH Key authentication (after disabling password auth)
+      block:
+        - name: Test connection with SSH keys
+          ping:
+          tags:
+            - test-ssh-keys
+
+        - name: Verify we can run commands with SSH keys
+          command: whoami
+          register: whoami_result
+          changed_when: false
+          tags:
+            - test-ssh-keys
+
+
+        - name: Display SSH key auth test result
+          debug:
+            msg: "SSH key authentication test passed: {{ whoami_result.stdout }}"
+
+
+
+  handlers:
+    - name: restart sshd
+      service:
+        name: sshd
+        state: restarted
+

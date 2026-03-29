@@ -1,0 +1,7 @@
+[project]
+name = "mde-linux-rhel-ansible-role"
+version = "0.1.0"
+
+dependencies = [
+    "ansible"
+]
