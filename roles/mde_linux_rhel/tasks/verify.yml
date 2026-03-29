@@ -1,7 +1,10 @@
-- name: Check MDE health
+- name: Wait for MDE daemon to become available
   command: mdatp health
   register: mde_health
   changed_when: false
+  retries: 10
+  delay: 5
+  until: mde_health.rc == 0
 
 - name: Show MDE health
   debug:
@@ -10,4 +13,4 @@
 - name: Ensure MDE is onboarded
   fail:
     msg: "MDE onboarding failed"
-  when: "'org_id' not in mde_health.stdout"
+  when: mde_health.stdout is not search("org_id")

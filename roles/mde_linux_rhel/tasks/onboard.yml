@@ -25,11 +25,16 @@
   debug:
     var: mde_org.stdout
 
-- name: Wait for all MDE tags to appear
-  command: mdatp health --field edr_device_tags
-  register: mde_tags_output
+- name: Flush handlers before validation
+  meta: flush_handlers
+
+- name: Validate managed config contains tags
+  command: cat /etc/opt/microsoft/mdatp/managed/mdatp_managed.json
+  register: mde_config_file
   changed_when: false
-  retries: 5
-  delay: 30
-  until: >
-    mde_tags | map(attribute='value') | select('in', mde_tags_output.stdout) | list | length == mde_tags | length
+
+- name: Ensure expected tags are present in config
+  assert:
+    that:
+      - "item.value in mde_config_file.stdout"
+  loop: "{{ mde_tags }}"

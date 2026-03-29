@@ -1,5 +1,5 @@
 ---
-configure_ssh: true
+configure_ssh: false
 ssh_keys:
   - user: root
     key_files:
@@ -7,7 +7,7 @@ ssh_keys:
       - "{{ lookup('env', 'HOME') }}/.ssh/id_rsa.pub"
 
 
-run_yum_update: true
+run_yum_update: false
 
 edr_enabled: true
 edr_supported_rhel_versions:
@@ -24,3 +24,5 @@ mde_passive_mode: false
 mde_tags:
   - key: "GROUP"
     value: "RHEL-EDR"
+  - key: "MANAGEMENT"
+    value: "MDE-Management"
