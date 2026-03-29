@@ -323,23 +323,6 @@ This file is generated from the Microsoft Defender portal and must **not be modi
 
 ---
 
-# 🧪 Lab vs Production
+# Offboarding
 
-| Area             | Lab        | Production |
-| ---------------- | ---------- | ---------- |
-| Tag validation   | Relaxed    | Strict     |
-| Retry timing     | Short      | Extended   |
-| Logging          | Verbose    | Structured |
-| Failure handling | Permissive | Strict     |
-
----
-
-# 💬 Final Notes
-
-This role is designed to reflect **real-world MDE behaviour**, including:
-
-* Delayed Graph population
-* Tag propagation delays
-* Agent startup timing
-
-If something appears “slow”, it’s usually **by design**, not failure.
+Offboarding is currently untested.  Use at your own risk.

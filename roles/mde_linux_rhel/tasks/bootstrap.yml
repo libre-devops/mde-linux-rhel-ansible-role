@@ -12,7 +12,9 @@
 - name: Ensure users exist
   fail:
     msg: "User {{ item.item.user }} does not exist on the system"
-  when: configure_ssh | default(true)
+  when:
+    - configure_ssh | default(true)
+    - item.stdout | length == 0
   loop: "{{ passwd_entries.results }}"
 
 # 🧠 Build user → home directory map

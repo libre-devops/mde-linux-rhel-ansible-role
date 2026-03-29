@@ -30,7 +30,7 @@ mde_force_offboarding: false
 mde_tags:
   - key: "GROUP"
     value: "MDE-Management"
-  - key: "GROUP"
+  - key: "ROLE"
     value: "RHEL-EDR"
 
 mde_state: present | absent
