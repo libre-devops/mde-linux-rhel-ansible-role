@@ -9,6 +9,9 @@ ssh_keys:
 
 run_yum_update: false
 
+onboard_mde_agent: true
+offboard_mde_agent: false
+
 edr_enabled: true
 edr_supported_rhel_versions:
   - 8
@@ -17,12 +20,17 @@ edr_supported_rhel_versions:
 mde_onboarding_file: "mdatp_onboard.json"
 mde_onboarding_local_path: "files/onboarding/{{ mde_onboarding_file }}"
 mde_onboarding_remote_path: "/etc/opt/microsoft/mdatp/{{ mde_onboarding_file }}"
+mde_offboarding_file: "mdatp_offboard.json"
+mde_offboarding_remote_path: "/etc/opt/microsoft/mdatp/{{ mde_offboarding_file }}"
 
 mde_force_onboarding: false
 mde_passive_mode: false
+mde_force_offboarding: false
 
 mde_tags:
   - key: "GROUP"
-    value: "RHEL-EDR"
-  - key: "MANAGEMENT"
     value: "MDE-Management"
+  - key: "GROUP"
+    value: "RHEL-EDR"
+
+mde_state: present | absent

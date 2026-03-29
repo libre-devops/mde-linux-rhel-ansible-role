@@ -19,12 +19,14 @@
 - name: Run MDE onboarding if not onboarded
   command: >
     mdatp onboarding --input {{ mde_onboarding_remote_path }}
-  when: mde_org.stdout | length == 0
+  when:
+    - mde_org.stdout | length == 0 or mde_force_onboarding | default(false)
 
 - name: Debug onboarding org_id
   debug:
     var: mde_org.stdout
 
+# 🔑 Ensure restart happens if config changed
 - name: Flush handlers before validation
   meta: flush_handlers
 
@@ -36,5 +38,5 @@
 - name: Ensure expected tags are present in config
   assert:
     that:
-      - "item.value in mde_config_file.stdout"
+      - item.value in mde_config_file.stdout
   loop: "{{ mde_tags }}"

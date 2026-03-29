@@ -5,18 +5,44 @@
   debug:
     msg: "EDR supported on this host: {{ is_edr_support }}"
 
+# 🚀 INSTALL PATH
 - name: Install MDE
   include_tasks: install.yml
-  when: is_edr_support
+  when:
+    - is_edr_support
+    - onboard_mde_agent | default(true)
+    - not offboard_mde_agent | default(false)
 
 - name: Configure MDE
   include_tasks: config.yml
-  when: is_edr_support
+  when:
+    - is_edr_support
+    - onboard_mde_agent | default(true)
+    - not offboard_mde_agent | default(false)
 
 - name: Onboard MDE
   include_tasks: onboard.yml
-  when: is_edr_support
+  when:
+    - is_edr_support
+    - onboard_mde_agent | default(true)
+    - not offboard_mde_agent | default(false)
 
 - name: Verify MDE
   include_tasks: verify.yml
-  when: is_edr_support
+  when:
+    - is_edr_support
+    - onboard_mde_agent | default(true)
+    - not offboard_mde_agent | default(false)
+
+# 🔥 OFFBOARD PATH
+- name: Offboard MDE
+  include_tasks: offboard.yml
+  when:
+    - is_edr_support
+    - offboard_mde_agent | default(false)
+
+- name: Uninstall MDE
+  include_tasks: uninstall.yml
+  when:
+    - is_edr_support
+    - offboard_mde_agent | default(false)

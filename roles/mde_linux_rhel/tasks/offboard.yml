@@ -1,0 +1,45 @@
+---
+- name: Ensure MDE config directory exists
+  file:
+    path: /etc/opt/microsoft/mdatp
+    state: directory
+    mode: '0755'
+
+- name: Copy offboarding file
+  copy:
+    src: "offboarding/{{ mde_offboarding_file }}"
+    dest: "{{ mde_offboarding_remote_path }}"
+    mode: '0600'
+
+- name: Check onboarding state
+  command: mdatp health --field org_id
+  register: mde_org
+  changed_when: false
+  failed_when: false
+
+- name: Debug current org_id before offboarding
+  debug:
+    var: mde_org.stdout
+
+- name: Run MDE offboarding if onboarded
+  command: >
+    mdatp offboarding --input {{ mde_offboarding_remote_path }}
+  when:
+    - mde_org.stdout | length > 0 or mde_force_offboarding | default(false)
+
+- name: Wait for MDE daemon to reflect offboarding
+  command: mdatp health
+  register: mde_health_post_offboard
+  changed_when: false
+  retries: 10
+  delay: 5
+  until: mde_health_post_offboard.rc == 0
+
+- name: Show MDE health after offboarding
+  debug:
+    var: mde_health_post_offboard.stdout_lines
+
+- name: Ensure MDE is offboarded
+  fail:
+    msg: "MDE offboarding failed"
+  when: mde_health_post_offboard.stdout is search("org_id")
