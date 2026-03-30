@@ -170,3 +170,4 @@ inventory.ini
 /roles/mde_linux_rhel/files/onboarding/mdatp_onboard.json
 /roles/mde_linux_rhel/files/offboarding/mdatp_offboard.json
 .vagrant/
+/keys/*

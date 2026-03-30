@@ -51,6 +51,27 @@ Vagrant.configure("2") do |config|
         echo "✅ #{vm_name} ready"
       SHELL
 
+      node.vm.provision "file", source: "./keys/id_ed25519.pub", destination: "/tmp/id_ed25519.pub"
+
+      node.vm.provision "shell", privileged: true, inline: <<-SHELL
+        set -eux
+
+        SSH_DIR="/home/vagrant/.ssh"
+        AUTH_KEYS="$SSH_DIR/authorized_keys"
+
+        mkdir -p $SSH_DIR
+        chmod 700 $SSH_DIR
+
+        cat /tmp/id_ed25519.pub >> $AUTH_KEYS
+
+        chmod 600 $AUTH_KEYS
+        chown -R vagrant:vagrant $SSH_DIR
+
+        rm -f /tmp/id_ed25519.pub
+
+        echo "🔑 SSH key added from file"
+      SHELL
+
       node.vm.provision "shell", privileged: true, inline: <<-SHELL
         set -eux
 
@@ -66,11 +87,9 @@ Vagrant.configure("2") do |config|
         echo ""
         echo "[rhel_mde_servers:vars]"
         echo "ansible_user=vagrant"
-        echo "ansible_ssh_private_key_file=.vagrant/machines/node#{i}/hyperv/private_key"
         echo "================================================"
         echo ""
       SHELL
-
     end
   end
 end
