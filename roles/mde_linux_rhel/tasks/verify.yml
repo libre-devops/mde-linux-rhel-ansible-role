@@ -1,16 +1,164 @@
+---
+# ============================================================
+# 🟢 CORE HEALTH VALIDATION
+# ============================================================
+
 - name: Wait for MDE daemon to become available
-  command: mdatp health
+  command: mdatp health --field healthy
   register: mde_health
   changed_when: false
   retries: 10
   delay: 5
-  until: mde_health.rc == 0
+  until:
+    - mde_health.rc == 0
+    - mde_health.stdout | trim in ["true", "false"]
 
-- name: Show MDE health
+- name: Show MDE health status
   debug:
-    var: mde_health.stdout_lines
+    msg: "MDE healthy: {{ mde_health.stdout }}"
 
-- name: Ensure MDE is onboarded
+- name: Check onboarding state
+  command: mdatp health --field org_id
+  register: mde_org
+  changed_when: false
+
+- name: Fail if not onboarded
   fail:
     msg: "MDE onboarding failed"
-  when: mde_health.stdout is not search("org_id")
+  when: mde_org.stdout | trim == ""
+
+- name: Ensure MDE health is true
+  fail:
+    msg: "MDE is not healthy"
+  when: mde_health.stdout | trim != "true"
+
+# ============================================================
+# 🌐 MDE CONNECTIVITY (ENFORCED)
+# ============================================================
+
+- name: Run MDE connectivity test
+  command: mdatp connectivity test
+  register: mde_connectivity
+  changed_when: false
+
+- name: Show connectivity output
+  debug:
+    var: mde_connectivity.stdout_lines
+
+- name: Ensure MDE connectivity test passed
+  fail:
+    msg: "MDE connectivity test failed"
+  when: mde_connectivity.rc != 0
+
+# ============================================================
+# 🔬 OPTIONAL: MDESupportTool (NON-BLOCKING)
+# ============================================================
+
+- name: Check if MDESupportTool exists
+  stat:
+    path: "{{ mde_client_analyzer_path }}"
+  register: mde_tool
+
+- name: Run MDESupportTool connectivity test (initial)
+  command: "{{ mde_client_analyzer_path }} connectivitytest --geo {{ mde_region }}"
+  register: mde_tool_test
+  changed_when: false
+  failed_when: false
+  when:
+    - run_mde_client_analyzer_connectivity_test | default(false)
+    - mde_tool.stat.exists | default(false)
+
+- name: Show MDESupportTool connectivity output
+  debug:
+    msg: "{{ (mde_tool_test.stdout_lines + mde_tool_test.stderr_lines) | list }}"
+  when:
+    - run_mde_client_analyzer_connectivity_test | default(false)
+    - mde_tool.stat.exists | default(false)
+
+# 🔍 Detect SSL issue (check BOTH stdout + stderr)
+- name: Detect SSL issues in MDESupportTool output
+  set_fact:
+    mde_tool_ssl_issue: >-
+      {{
+        'SSL cert issue' in (
+          (mde_tool_test.stdout | default('')) +
+          (mde_tool_test.stderr | default(''))
+        )
+      }}
+  when:
+    - run_mde_client_analyzer_connectivity_test | default(false)
+    - mde_tool.stat.exists | default(false)
+
+# 🛠️ Fix ONLY if needed
+- name: Ensure openssl3 directory exists (fix path)
+  file:
+    path: /usr/local/openssl3
+    state: directory
+    mode: '0755'
+  when:
+    - attempt_to_fix_rhel9_client_analyzer_ssl_errors | default(false)
+    - mde_tool_ssl_issue | default(false)
+
+- name: Link system CA bundle for MDESupportTool
+  file:
+    src: /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem
+    dest: /usr/local/openssl3/cert.pem
+    state: link
+  when:
+    - attempt_to_fix_rhel9_client_analyzer_ssl_errors | default(false)
+    - mde_tool_ssl_issue | default(false)
+
+# 🔁 Re-test after fix
+- name: Re-run MDESupportTool connectivity test after fix
+  command: "{{ mde_client_analyzer_path }} connectivitytest --geo {{ mde_region }}"
+  register: mde_tool_test_after
+  changed_when: false
+  failed_when: false
+  when:
+    - run_mde_client_analyzer_connectivity_test | default(false)
+    - mde_tool_ssl_issue | default(false)
+
+# 📊 Track result (non-blocking)
+- name: Set MDESupportTool status
+  set_fact:
+    mde_tool_status: >-
+      {{
+        'passed' if (mde_tool_test_after.rc | default(mde_tool_test.rc)) == 0
+        else 'failed'
+      }}
+  when:
+    - run_mde_client_analyzer_connectivity_test | default(false)
+    - mde_tool.stat.exists | default(false)
+
+- name: Show MDESupportTool result
+  debug:
+    msg: "MDESupportTool result: {{ mde_tool_status }}"
+  when:
+    - run_mde_client_analyzer_connectivity_test | default(false)
+    - mde_tool.stat.exists | default(false)
+
+- name: Warn if MDESupportTool connectivity test failed
+  debug:
+    msg: "WARNING: MDESupportTool connectivity test failed (non-blocking)"
+  when:
+    - run_mde_client_analyzer_connectivity_test | default(false)
+    - mde_tool.stat.exists | default(false)
+    - mde_tool_status == "failed"
+
+# ============================================================
+# 🛡️ QUICK SCAN (ENFORCED)
+# ============================================================
+
+- name: Run MDE quick scan
+  command: mdatp scan quick
+  register: mde_scan
+  changed_when: true
+
+- name: Show quick scan output
+  debug:
+    var: mde_scan.stdout_lines
+
+- name: Ensure MDE scan completed successfully
+  fail:
+    msg: "MDE scan failed"
+  when: mde_scan.rc != 0

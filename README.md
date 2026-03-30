@@ -128,7 +128,18 @@ ansible --version
 
 # 🧪 Test Ansible
 
-Run a quick test to confirm everything is working:
+## Configure your inventory.ini
+
+Configure for your own use, this is an example
+
+```ini
+[rhel_mde_servers]
+vm1 ansible_host=172.19.249.237
+
+[rhel_mde_servers:vars]
+ansible_user=root
+```
+Then
 
 ```bash
 ansible localhost -m ping
@@ -149,35 +160,81 @@ localhost | SUCCESS => {
 
 ```text
 .
-|-- LICENSE
-|-- README.md
-|-- inventory.ini
-|-- pyproject.toml
-|-- requirements.txt
-|-- roles
-|   `-- mde_linux_rhel
-|       |-- defaults
-|       |   `-- main.yml
-|       |-- files
-|       |   `-- onboarding
-|       |       `-- mdatp_onboard.json
-|       |-- handlers
-|       |   `-- main.yml
-|       |-- meta
-|       |   `-- main.yml
-|       |-- tasks
-|       |   |-- bootstrap.yml
-|       |   |-- config.yml
-|       |   |-- install.yml
-|       |   |-- main.yml
-|       |   |-- onboard.yml
-|       |   `-- verify.yml
-|       |-- templates
-|       |   `-- mdatp_managed.json.j2
-|       `-- vars
-|           `-- main.yml
-`-- site.yml
+├── inventory.ini
+├── LICENSE
+├── pyproject.toml
+├── README.md
+├── requirements.txt
+├── roles
+│   └── mde_linux_rhel
+│       ├── defaults
+│       │   └── main.yml
+│       ├── files
+│       │   ├── offboarding
+│       │   │   └── mdatp_offboard.json
+│       │   └── onboarding
+│       │       └── mdatp_onboard.json
+│       ├── handlers
+│       │   └── main.yml
+│       ├── meta
+│       │   └── main.yml
+│       ├── tasks
+│       │   ├── bootstrap.yml
+│       │   ├── config.yml
+│       │   ├── install.yml
+│       │   ├── main.yml
+│       │   ├── offboard.yml
+│       │   ├── onboard.yml
+│       │   ├── uninstall.yml
+│       │   └── verify.yml
+│       ├── templates
+│       │   └── mdatp_managed.json.j2
+│       └── vars
+│           └── main.yml
+└── site.yml
 ```
+
+---
+
+# 🔄 Playbook Flow
+
+```text
+                ┌────────────────────┐
+                │   bootstrap.yml    │
+                └─────────┬──────────┘
+                          │
+                          ▼
+                ┌────────────────────┐
+                │   install.yml      │
+                │ (mdatp package)    │
+                └─────────┬──────────┘
+                          │
+                          ▼
+                ┌────────────────────┐
+                │   config.yml       │
+                │ (managed config)   │
+                └─────────┬──────────┘
+                          │
+                          ▼
+        ┌───────────────────────────────────┐
+        │ onboard.yml (if enabled)          │
+        │ offboard.yml (if enabled)         │
+        │ uninstall.yml (if absent state)   │
+        └─────────┬─────────────────────────┘
+                          │
+                          ▼
+                ┌────────────────────┐
+                │   verify.yml       │
+                │ health + tests     │
+                └────────────────────┘
+```
+
+### 🧠 Behaviour
+
+* Flow is **conditional**
+* Controlled via variables (onboard/offboard/state)
+* Safe to re-run multiple times
+* Verification always runs last
 
 ---
 
@@ -187,13 +244,11 @@ localhost | SUCCESS => {
 
 * Uses onboarding file from:
 
-  ```text
-  roles/mde_linux_rhel/files/onboarding/
-  ```
+```text
+roles/mde_linux_rhel/files/onboarding/
+```
 
-* Onboarding is **idempotent**:
-
-    * Only runs if `org_id` is not present
+* Only runs if device is not already onboarded
 
 ---
 
@@ -201,78 +256,93 @@ localhost | SUCCESS => {
 
 * Managed via:
 
-  ```text
-  /etc/opt/microsoft/mdatp/managed/mdatp_managed.json
-  ```
+```text
+/opt/microsoft/mdatp/managed/mdatp_managed.json
+```
 
 * Includes:
 
-    * Antivirus mode (passive / real-time)
-    * Cloud configuration
-    * EDR tags
+  * Antivirus mode
+  * Cloud config
+  * EDR tags
 
 ---
 
 ## 🔁 Service Handling
 
-* `mdatp` is **only restarted when configuration changes**
-* Implemented using Ansible **handlers**
+* Restart only when config changes:
 
 ```yaml
 notify: restart mdatp
 ```
 
-* Handlers are flushed before validation to ensure correct state
-
 ---
 
 ## 🏷️ Tagging
 
-Example:
-
 ```yaml
 mde_tags:
   - key: "GROUP"
-    value: "RHEL-EDR"
-  - key: "MANAGEMENT"
     value: "MDE-Management"
+  - key: "ROLE"
+    value: "RHEL-EDR"
 ```
 
-### ⚠️ Important
-
-* Tag **keys must be unique**
-* Duplicate keys will result in tags being ignored by MDE
+⚠️ Keys must be unique
 
 ---
 
 ## ⏱️ Eventual Consistency
 
-MDE is **not instant**
+MDE is not immediate:
 
-* Config → Agent → Cloud → Agent
-* Tags and state may take time to appear
+```text
+Config → Agent → Cloud → Agent
+```
 
-The role accounts for this by:
+Expect delays in:
 
-* Waiting for daemon readiness
-* Retrying health checks
-* Avoiding brittle assumptions
+* Tags
+* ManagedBy
+* API visibility
 
 ---
 
-## 🔍 Verification
+# 🔍 Verification
 
-The role verifies:
+The role validates:
 
-* MDE service is responsive
-* Device is onboarded (`org_id`)
-* Config file contains expected values
+* `mdatp health`
+* `org_id` present
+* connectivity test passes
+* optional client analyzer
+* quick scan completes
 
-Example:
+---
 
-```bash
-mdatp health
-```
+# ⚙️ Configuration Variables
+
+| Variable                                        | Type   | Default             | Description            |
+| ----------------------------------------------- | ------ | ------------------- | ---------------------- |
+| configure_ssh                                   | bool   | false               | Configure SSH keys     |
+| ssh_keys                                        | list   | []                  | SSH key definitions    |
+| run_yum_update                                  | bool   | false               | Run system updates     |
+| onboard_mde_agent                               | bool   | true                | Enable onboarding      |
+| offboard_mde_agent                              | bool   | false               | Enable offboarding     |
+| edr_enabled                                     | bool   | true                | Enable EDR features    |
+| edr_supported_rhel_versions                     | list   | [8,9]               | Supported OS versions  |
+| mde_onboarding_file                             | string | mdatp_onboard.json  | Onboarding file name   |
+| mde_onboarding_remote_path                      | string | path                | Remote onboarding path |
+| mde_offboarding_file                            | string | mdatp_offboard.json | Offboarding file       |
+| mde_force_onboarding                            | bool   | false               | Force re-onboard       |
+| mde_force_offboarding                           | bool   | false               | Force offboard         |
+| mde_passive_mode                                | bool   | false               | Passive AV mode        |
+| mde_tags                                        | list   | see defaults        | EDR tags               |
+| mde_state                                       | string | present             | present/absent         |
+| mde_region                                      | string | UK                  | Geo for connectivity   |
+| run_mde_client_analyzer_connectivity_test       | bool   | true                | Run analyzer           |
+| attempt_to_fix_rhel9_client_analyzer_ssl_errors | bool   | true                | Auto SSL fix           |
+| mde_client_analyzer_path                        | string | path                | Analyzer binary path   |
 
 ---
 
@@ -286,14 +356,14 @@ ansible-playbook -i inventory.ini site.yml
 
 # ⚠️ Notes
 
-* Always activate the virtual environment before running Ansible
-* Do **not** install dependencies globally
-* `.venv/` should be in `.gitignore`
-* MDE behaviour is **eventually consistent**, not immediate
+* Activate venv before running
+* Do not install globally
+* `.venv/` should be ignored
+* MDE is eventually consistent
 
 ---
 
-# 🧹 Deactivate environment
+# 🧹 Deactivate
 
 ```bash
 deactivate
@@ -303,26 +373,24 @@ deactivate
 
 # 📌 Onboarding File
 
-Place your onboarding file in:
-
 ```text
 roles/mde_linux_rhel/files/onboarding/
 ```
 
-This file is generated from the Microsoft Defender portal and must **not be modified**.
+Must be downloaded from Defender portal.
 
 ---
 
 # 🧠 Design Principles
 
-* Idempotent by default
+* Idempotent
 * Minimal restarts
 * Retry-aware
-* Cloud-aware (eventual consistency)
-* Clean separation of concerns
+* Cloud-aware
+* Clean task separation
 
 ---
 
-# Offboarding
+# 🚫 Offboarding
 
-Offboarding is currently untested.  Use at your own risk.
+⚠️ Offboarding is currently **untested** — use with caution.

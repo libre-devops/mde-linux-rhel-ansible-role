@@ -34,3 +34,8 @@ mde_tags:
     value: "RHEL-EDR"
 
 mde_state: present | absent
+
+mde_region: "UK" # must be one of: US|UK|EU|AU|CH|IN
+run_mde_client_analyzer_connectivity_test: true
+attempt_to_fix_rhel9_client_analyzer_ssl_errors: true
+mde_client_analyzer_path: "/opt/microsoft/mdatp/tools/client_analyzer/binary/MDESupportTool"
