@@ -164,6 +164,7 @@ localhost | SUCCESS => {
 ├── LICENSE
 ├── pyproject.toml
 ├── README.md
+├── Vagrantfile
 ├── requirements.txt
 ├── roles
 │   └── mde_linux_rhel
@@ -379,18 +380,47 @@ roles/mde_linux_rhel/files/onboarding/
 
 Must be downloaded from Defender portal.
 
----
+# Vagrant
+For my own testing, there is a Vagrantfile in the root of the repo you can use.  Be aware, you'll need to add your SSH key (mine is ED25519) to the `keys` repo.
 
-# 🧠 Design Principles
+The vagrant file is setup to user Hyper-V, and you'll need to update your inventory.ini to reflect its a vagrant box.
 
-* Idempotent
-* Minimal restarts
-* Retry-aware
-* Cloud-aware
-* Clean task separation
+I am running on Windows, and running Ansible from my WSL2, so I needed to add on Windows:
 
----
+```powershell
+Set-NetIPInterface -ifAlias "vEthernet (WSL (Hyper-V firewall))" -Forwarding Enabled 
+Set-NetIPInterface -ifAlias "vEthernet (Default Switch)" -Forwarding Enabled New-NetFirewallRule -DisplayName "Allow WSL ↔ Hyper-V" -Direction Inbound -Action Allow -InterfaceAlias "vEthernet (WSL (Hyper-V firewall))"
+```
+
+Then get my Bridged NIC IP address:
+```powershell
+Get-NetIPAddress -InterfaceAlias "vEthernet (WSL (Hyper-V firewall))"
+```
+
+Then on WSL2 with the IP handy:
+
+```bash
+sudo ip route add 172.17.0.0/16 via 172.29.32.1
+```
+
+Finally, I added that to my "command=" on `/etc/wsl.conf`
+```bash
+[boot]
+command=ip route add 172.17.0.0/16 via 172.29.32.1
+```
+
+My `inventory.ini` then looked like:
+```ini
+[rhel_mde_servers]
+vm1 ansible_host=172.17.172.118
+
+[rhel_mde_servers:vars]
+ansible_user=vagrant
+ansible_ssh_common_args='-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null'
+```
+
+I could then just run my usual `ansible-playbook -i inventory.ini site.yml`
 
 # 🚫 Offboarding
 
-⚠️ Offboarding is currently **untested** — use with caution.
+⚠️ Offboarding is currently **untested** — use with caution.  It does seem to work, but you need to exclude the devices yourself on Defender.
