@@ -1,45 +1,117 @@
 ---
+# ============================================================
+# 📦 Ensure fact is set
+# ============================================================
+- name: Default offboarding status
+  set_fact:
+    mde_offboard_success: false
+
+# ============================================================
+# 📁 Ensure config path
+# ============================================================
+
 - name: Ensure MDE config directory exists
   file:
     path: /etc/opt/microsoft/mdatp
     state: directory
     mode: '0755'
 
+# ============================================================
+# 📦 Deploy offboarding package
+# ============================================================
+
 - name: Copy offboarding file
   copy:
     src: "offboarding/{{ mde_offboarding_file }}"
     dest: "{{ mde_offboarding_remote_path }}"
     mode: '0600'
+  notify: restart mdatp
 
-- name: Check onboarding state
+# ============================================================
+# 🔍 Pre-check (for visibility only)
+# ============================================================
+
+- name: Check onboarding state (before)
   command: mdatp health --field org_id
-  register: mde_org
+  register: mde_org_before
   changed_when: false
   failed_when: false
 
-- name: Debug current org_id before offboarding
+- name: Extract org_id (before)
+  set_fact:
+    mde_org_before_clean: >-
+      {{
+        mde_org_before.stdout_lines
+        | select('match', '^".*"$')
+        | list
+        | first
+        | default('""')
+        | regex_replace('"', '')
+      }}
+
+- name: Show org_id before offboarding
   debug:
-    var: mde_org.stdout
+    msg: "Before offboarding org_id: '{{ mde_org_before_clean }}'"
 
-- name: Run MDE offboarding if onboarded
-  command: >
-    mdatp offboarding --input {{ mde_offboarding_remote_path }}
-  when:
-    - mde_org.stdout | length > 0 or mde_force_offboarding | default(false)
+# ============================================================
+# 🔄 Trigger offboarding (CRITICAL)
+# ============================================================
 
-- name: Wait for MDE daemon to reflect offboarding
-  command: mdatp health
-  register: mde_health_post_offboard
+- name: Flush handlers to trigger MDE restart
+  meta: flush_handlers
+
+# ============================================================
+# ⏳ Wait for offboarding to take effect
+# ============================================================
+
+- name: Wait for org_id to clear
+  command: mdatp health --field org_id
+  register: mde_org_after
   changed_when: false
+  failed_when: false
   retries: 10
   delay: 5
-  until: mde_health_post_offboard.rc == 0
+  until: >
+    (
+      mde_org_after.stdout_lines
+      | select('match', '^".*"$')
+      | list
+      | first
+      | default('""')
+      | regex_replace('"', '')
+    ) == ""
 
-- name: Show MDE health after offboarding
+# ============================================================
+# 🔍 Post-check
+# ============================================================
+
+- name: Extract org_id (after)
+  set_fact:
+    mde_org_after_clean: >-
+      {{
+        mde_org_after.stdout_lines
+        | select('match', '^".*"$')
+        | list
+        | first
+        | default('""')
+        | regex_replace('"', '')
+      }}
+
+- name: Show org_id after offboarding
   debug:
-    var: mde_health_post_offboard.stdout_lines
+    msg: "After offboarding org_id: '{{ mde_org_after_clean }}'"
+
+# ============================================================
+# ✅ Final assertion
+# ============================================================
 
 - name: Ensure MDE is offboarded
-  fail:
-    msg: "MDE offboarding failed"
-  when: mde_health_post_offboard.stdout is search("org_id")
+  assert:
+    that:
+      - mde_org_after_clean == ""
+    fail_msg: "MDE offboarding failed"
+    success_msg: "MDE successfully offboarded"
+
+- name: Mark offboarding success
+  set_fact:
+    mde_offboard_success: true

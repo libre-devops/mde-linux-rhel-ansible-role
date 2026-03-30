@@ -46,3 +46,4 @@
   when:
     - is_edr_support
     - offboard_mde_agent | default(false)
+    - mde_offboard_success | default(false)
