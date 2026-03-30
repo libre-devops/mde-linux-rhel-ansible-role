@@ -10,7 +10,7 @@ ssh_keys:
 run_yum_update: false
 
 onboard_mde_agent: false
-offboard_mde_agent: true
+offboard_mde_agent: false
 
 edr_enabled: true
 edr_supported_rhel_versions:
