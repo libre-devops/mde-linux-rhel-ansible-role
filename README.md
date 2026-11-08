@@ -1,5 +1,12 @@
 # mde-linux-rhel-ansible-role
 
+> **SUPERSEDED**: this RHEL-only role is archived and will not be updated. Use the roles that
+> replace it instead:
+> [ansible-role-mde-linux](https://github.com/libre-devops/ansible-role-mde-linux)
+> (`libre_devops.mde_linux`) for Defender for Endpoint on RHEL, Debian, Ubuntu and SUSE, and
+> [ansible-role-ssh-bootstrap](https://github.com/libre-devops/ansible-role-ssh-bootstrap)
+> (`libre_devops.ssh_bootstrap`) for the SSH key and `sshd` set-up this role also did.
+
 ## 📦 Overview
 
 An Ansible role to install, configure, and onboard **Microsoft Defender for Endpoint (MDE)** on RHEL-based Linux systems.
